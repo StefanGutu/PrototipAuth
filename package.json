@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@passwordless-id/webauthn": "^2.0.2",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "express": "^4.19.2",
+    "gql.tada": "^1.8.5"
+  }
+}
