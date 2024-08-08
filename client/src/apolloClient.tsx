@@ -3,6 +3,7 @@ import { WebSocketLink } from '@apollo/client/link/ws';
 import { getMainDefinition } from '@apollo/client/utilities';
 import React, { ReactNode } from 'react';
 
+//IDK if its important right now
 
 
 const httpLink = new HttpLink({ // connect ApolloClient with GraphQL server over http
@@ -42,7 +43,7 @@ const splitLink = split(
 
 
 // Create the Apollo Client
-const client = new ApolloClient({
+export const client = new ApolloClient({
     link: splitLink,
     cache: new InMemoryCache(),
 });

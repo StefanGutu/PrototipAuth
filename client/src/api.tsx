@@ -45,8 +45,8 @@ export async function fetchID() {
 
 
 
-export async function sendRegistrationData(registrationData: object){
-    try{
+export async function sendRegistrationData(registrationData: object) {
+    try {
         const response = await fetch('http://localhost:3000/api/register-user', {
             method: 'POST',
             headers: {
@@ -56,7 +56,9 @@ export async function sendRegistrationData(registrationData: object){
         });
 
         if (!response.ok) {
-            throw new Error('Error sending registration data');
+            // Log the response body for better error insight
+            const errorText = await response.text();
+            throw new Error(`Error sending registration data: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
@@ -66,4 +68,5 @@ export async function sendRegistrationData(registrationData: object){
         throw error;
     }
 }
+
 

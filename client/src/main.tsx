@@ -6,8 +6,8 @@ import ApolloWrapper from './apolloClient.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* <ApolloWrapper> */}
+    <ApolloWrapper>
       <App />
-    {/* </ApolloWrapper> */}
+    </ApolloWrapper>
   </React.StrictMode>,
 )

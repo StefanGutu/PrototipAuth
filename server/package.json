@@ -11,9 +11,19 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@apollo/client": "^3.11.4",
     "@passwordless-id/webauthn": "^2.0.2",
+    "axios": "^1.7.3",
+    "cross-fetch": "^4.0.0",
     "crypto": "^1.0.1",
     "express": "^4.19.2",
-    "express-session": "^1.18.0"
+    "express-session": "^1.18.0",
+    "graphql": "^16.9.0",
+    "graphql-request": "^7.1.0",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.1.0"
   }
 }
