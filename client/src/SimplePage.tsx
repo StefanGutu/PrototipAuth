@@ -1,24 +1,21 @@
 import {useState,ChangeEvent} from 'react'
 import { client } from '@passwordless-id/webauthn'
-import { fetchChallenge,fetchID, sendRegistrationData } from './api.tsx';
+import { fetchChallenge,fetchID, sendRegistrationData ,sendAuthenticationData} from './api.tsx';
 
 function SimplePage(){
 
-    const [users, setUsers] = useState<{UserID: String, UserName: String; passwordUser: String}[]>([]);
-    const [newUser, setNewUser] = useState({UserName: "",passwordUser: "",UserID: ""});
+    const [users, setUsers] = useState<{UserID: String, UserName: String}[]>([]);
+    const [newUser, setNewUser] = useState({UserName: "",UserID: ""});
 
 
     function handleInputNewUserName(event: ChangeEvent<HTMLInputElement>) {
         setNewUser({ ...newUser, UserName: event.target.value});
     };
 
-    function handleInputNewUserPassowrd(event: ChangeEvent<HTMLInputElement>){
-        setNewUser({...newUser, passwordUser: event.target.value});
-    };
-
+    
     
     async function handleAddNewUser() {
-        if(newUser.UserName.trim() !== "" && newUser.passwordUser.trim() !== ""){
+        if(newUser.UserName.trim() !== ""){
             
 
             const id = await fetchID();
@@ -37,9 +34,22 @@ function SimplePage(){
             const TempListUsers = [...users, tempUser];
             setUsers(TempListUsers);
             
-            setNewUser({UserName: "",passwordUser: "",UserID: ""});
+            setNewUser({UserName: "",UserID: ""});
         }
     };
+
+    async function handleCheckOldUser() {
+        try {
+            const authentication = await client.authenticate({
+                challenge: await fetchChallenge(),
+            });
+            await sendAuthenticationData(authentication);
+        } catch (error) {
+            console.error("Error during authentication:", error);
+        }
+
+    }
+    
 
     return(
         <>
@@ -47,11 +57,9 @@ function SimplePage(){
                 <input type="text" placeholder='User Name' value={newUser.UserName} onChange={handleInputNewUserName} ></input>
                 <br/>
 
-                <input type="text" placeholder='Password ' value={newUser.passwordUser} onChange={handleInputNewUserPassowrd}></input>
-                <br/>
 
                 <button onClick={handleAddNewUser}> Register</button>
-                <button> Authentication</button>
+                <button onClick={handleCheckOldUser} > Authentication</button>
             </div>
         </>
     );

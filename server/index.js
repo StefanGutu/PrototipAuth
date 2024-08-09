@@ -4,6 +4,7 @@ import cors from 'cors';
 import { server } from '@passwordless-id/webauthn';
 import { client, gql } from './apolloClient.js';
 import { INSERT_NEW_USER_CREDENTIAL,INSERT_NEW_USER_DATA} from './graphql/mutations.js';
+import {GET_USER_CREDENTIAL} from './graphql/queries.js';
 
 const app = express();
 const port = 3000;
@@ -39,7 +40,7 @@ app.post('/api/generate-ID', (req, res) => {
 app.post('/api/register-user', async (req, res) => {
     const registrationData = req.body.registrationData;
     console.log('Received registration data:', registrationData);
-
+    
     try {
         // Verify registration data
         const registrationParsed = await server.verifyRegistration(registrationData, expected);
@@ -84,6 +85,33 @@ app.post('/api/register-user', async (req, res) => {
         console.error('Error verifying registration:', error.message);
         console.error('Detailed error:', error);
         res.status(500).json({ error: 'Error verifying registration' });
+    }
+});
+
+app.post('/api/authentication-user', async (req,res) =>{
+
+    const authenticationData = req.body.authenticationData;
+    console.log('Recived authentication data', authenticationData);
+
+    try{
+        const {credentialKey} = await client.query({
+            query: GET_USER_CREDENTIAL,
+            variables: authenticationData.id, 
+        });
+        console.log('CredentialKey recived:',credentialKey);
+
+
+        try{
+            const authenticationParsed = await server.verifyAuthentication(authenticationData, credentialKey, expected);
+            console.log('Verification for authenticationParsed',authenticationParsed);
+        }catch(authenticationError){
+            console.error('Error inserting user credentials:', authenticationError.message);
+        }
+
+        
+
+    }catch(error){
+        console.error('Error inserting user credentials:', error.message);
     }
 });
 
