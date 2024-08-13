@@ -40,7 +40,7 @@ services:
       - my-network
 
 
-    
+
   server:
     container_name: server
     restart: unless-stopped

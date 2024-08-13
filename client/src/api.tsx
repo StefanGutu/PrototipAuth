@@ -21,6 +21,7 @@ export async function fetchChallenge(){
     }
 }
 
+
 export async function fetchID() {
     try {
         const response = await fetch('http://localhost:3000/api/generate-ID', {
@@ -45,7 +46,7 @@ export async function fetchID() {
 
 
 
-export async function sendRegistrationData(registrationData: object) {
+export async function sendRegistrationData(registrationData: object): Promise<boolean> {
     try {
         const response = await fetch('http://localhost:3000/api/register-user', {
             method: 'POST',
@@ -56,13 +57,15 @@ export async function sendRegistrationData(registrationData: object) {
         });
 
         if (!response.ok) {
-            // Log the response body for better error insight
+            return false;
             const errorText = await response.text();
             throw new Error(`Error sending registration data: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
+        console.log("Registration succes:",result);
         return result;
+        
     } catch (error) {
         console.error('Error sending registration data:', error);
         throw error;
@@ -70,8 +73,10 @@ export async function sendRegistrationData(registrationData: object) {
 }
 
 
-export async function sendAuthenticationData(authenticationData: object){
+export async function sendAuthenticationData(authenticationData: object): Promise<boolean>{
+    
     try{
+
         const response = await fetch("http://localhost:3000/api/authentication-user",{
             method: 'POST',
             headers: {
@@ -80,12 +85,17 @@ export async function sendAuthenticationData(authenticationData: object){
             body: JSON.stringify({authenticationData}),
         });
 
+        
         if(!response.ok){
+            return false;
             const errorText = await response.text();
             throw new Error(`Error sending registration data: ${response.status} - ${errorText}`);
+
         }
 
         const result = await response.json();
+        console.log("Authentication succes:",result);
+
         return result;
     }catch(error){
         console.error("Error sending authentication data:", error);
