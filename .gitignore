@@ -2,4 +2,6 @@ node_modules
 
 postgres-db
 
+server2
+
 .env

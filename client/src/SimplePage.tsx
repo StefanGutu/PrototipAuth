@@ -6,14 +6,18 @@ import { useNavigate } from 'react-router-dom';
 
 function SimplePage(){
 
-    const [users, setUsers] = useState<{UserID: String, UserName: String}[]>([]);
-    const [newUser, setNewUser] = useState({UserName: "",UserID: ""});
+    const [users, setUsers] = useState<{UserID: String, UserName: String,UserPassword: String}[]>([]);
+    const [newUser, setNewUser] = useState({UserName: "",UserID: "",UserPassword: ""});
 
     const navigate = useNavigate();
 
     function handleInputNewUserName(event: ChangeEvent<HTMLInputElement>) {
         setNewUser({ ...newUser, UserName: event.target.value});
     };
+
+    function handleInputNewUserPassword(event: ChangeEvent<HTMLInputElement>){
+        setNewUser({...newUser, UserPassword: event.target.value})
+    }
 
     
     //Function that handle when a new user register in 
@@ -43,7 +47,7 @@ function SimplePage(){
             const TempListUsers = [...users, tempUser];
             setUsers(TempListUsers);
             
-            setNewUser({UserName: "",UserID: ""});
+            setNewUser({UserName: "",UserID: "",UserPassword: ""});
         }
     };
 
@@ -56,7 +60,7 @@ function SimplePage(){
             const authentication = await client.authenticate({
                 challenge: await fetchChallenge(),
             });
-
+            
             
             const response = await sendAuthenticationData(authentication);
 
@@ -68,7 +72,7 @@ function SimplePage(){
             }else if(response === false){
                 navigate("/");
             }
-
+            
         } catch (error) {
             console.error("Error during authentication:", error);
         }
@@ -82,6 +86,7 @@ function SimplePage(){
                 
                 <div>
                     <input type="text" placeholder='User Name' value={newUser.UserName} onChange={handleInputNewUserName} ></input>
+                    <input type="text" placeholder='Password' value={newUser.UserPassword} onChange={handleInputNewUserPassword} ></input>
                 </div>
 
                 <div>

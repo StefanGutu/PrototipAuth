@@ -22,7 +22,7 @@ export async function fetchChallenge(){
 }
 
 
-export async function fetchID() {
+export async function fetchID(): Promise<String> {
     try {
         const response = await fetch('http://localhost:3000/api/generate-ID', {
             method: 'POST',
@@ -57,13 +57,12 @@ export async function sendRegistrationData(registrationData: object): Promise<bo
         });
 
         if (!response.ok) {
-            return false;
             const errorText = await response.text();
             throw new Error(`Error sending registration data: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
-        console.log("Registration succes:",result);
+        console.log("Registration success:",result);
 
         if(result !== 'true'){
             return false;
@@ -92,14 +91,12 @@ export async function sendAuthenticationData(authenticationData: object): Promis
 
         
         if(!response.ok){
-            return false;
             const errorText = await response.text();
             throw new Error(`Error sending authentication data: ${response.status} - ${errorText}`);
-
         }
 
         const result = await response.json();
-        console.log("Authentication succes:",result);
+        console.log("Authentication success:",result);
 
         if(result !== 'true'){
             return false;
