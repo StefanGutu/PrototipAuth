@@ -1,10 +1,11 @@
 import express from 'express';
-import crypto from 'crypto';
 import cors from 'cors';
+import crypto from 'crypto';
 import { server } from '@passwordless-id/webauthn';
 import  client  from './apollo-Client';
-import { INSERT_NEW_USER_CREDENTIAL } from './graphql/mutations';
-import {GET_USER_CREDENTIAL} from './graphql/queries';
+import { INSERT_NEW_USER_CREDENTIAL, INSERT_NEW_USER_DATA } from './graphql/mutations';
+import {GET_USER_CREDENTIAL, GET_USER_DATA} from './graphql/queries';
+import { Request, Response, NextFunction } from 'express';
 
 const app = express();
 const port = 3000;
@@ -25,6 +26,7 @@ const expected = {
 
 app.post('/api/generate-challenge', (req, res) => {
     const challenge = generateBase64UrlEncodedString(); // get the random string
+    // const challenge = server.randomChallenge();
     expected.challenge = challenge;
     res.json({ challenge }); //send it back
 });
@@ -47,8 +49,88 @@ app.post('/api/generate-ID', (req, res) => {
 });
 
 
+//This function recive data when the client register for the first time and send it to data base
+app.post('/api/register-user', async (req , res) =>{  
+    const registrationData  = req.body.registrationData;
+    console.log("-----------------------------------------------------------");
+    console.log("Recived user data for registration:",registrationData);
+    console.log("-----------------------------------------------------------");
 
-app.post('/api/register-user', async (req, res) => {
+    try{
+
+        const newRegistrationData = { // struct that will be sent to database
+            username: registrationData.UserName,
+            userpassword: registrationData.UserPassword,
+            userid: registrationData.UserID
+        }
+
+        try{
+
+            const credentialResponse = await client.mutate({ 
+                mutation: INSERT_NEW_USER_DATA,
+                variables: newRegistrationData,
+            });
+
+            console.log('----------------------------------------------------------------');
+            console.log('User data inserted with success:', credentialResponse);
+            res.json(true);
+
+        }catch(error){
+            console.log('Error inserting user data: ',error);
+            throw error;
+        }
+
+    }catch(error){
+        console.log('Error getting hashed password in register-user ',error);
+        throw error;
+    }
+
+});
+
+const validateUser = async (req:Request, res: Response, next:NextFunction) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const auth = authHeader.split(' ')[1];
+        const [username, password] = Buffer.from(auth, 'base64').toString().split(':'); // Extrage username și password din header
+
+        try {
+            const userDataFromDataBase = await client.query({
+                query: GET_USER_DATA,
+                variables: { username: username },
+            });
+
+            if (userDataFromDataBase.data.userdata.length === 0) {
+                return res.json(false);
+            }
+
+            if (password === userDataFromDataBase.data.userdata[0].userpassword) {
+                return next();
+            } else {
+                return res.json(false);
+            }
+        } catch (error) {
+            console.log('Error during user validation: ', error);
+            return res.status(500).send('Internal Server Error');
+        }
+    } else {
+        return res.status(401).json('Authentication required');
+    }
+};
+
+app.post('/api/authentication-user', validateUser, async (req, res) => {
+    try {
+        console.log('User authenticated successfully.');
+        return res.json(true);
+    } catch (error) {
+        console.log('Error during the authentication process: ', error);
+        return res.json(false);
+    }
+});
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+app.post('/api/register-user-credetial', async (req, res) => {
     const registrationData = req.body.registrationData;
     console.log('Received registration data:', registrationData);
     
@@ -58,30 +140,46 @@ app.post('/api/register-user', async (req, res) => {
         console.log('----------------------------------------------------------------');
         console.log('Verified registration data:', registrationParsed);
 
-
-        // Variables for inserting user credentials
-        const credentialVariables = {
-            id: registrationParsed.credential.id || '',
-            pubkey: registrationParsed.credential.publicKey || '',
-            algorithm: registrationParsed.credential.algorithm || '',
-            transports: registrationParsed.credential.transports || [],
-        };
-
-        // Insert user credentials
-        try {
-
-            const credentialResponse = await client.mutate({
-                mutation: INSERT_NEW_USER_CREDENTIAL,
-                variables: credentialVariables,
+        try{
+            //Search for the user in database and get data to add id to credetials that will be saved
+            const userDataFromDataBase = await client.query({
+                query: GET_USER_DATA,
+                variables: { username: registrationParsed.user.name},
             });
 
+            
 
-            console.log('----------------------------------------------------------------');
-            console.log('User credentials inserted:', credentialResponse);
-            res.json('true');
-        } catch (credentialError) {
-            console.error('Error inserting user credentials:', credentialError);
-            res.json('false');
+            // Variables for inserting user credentials
+            const credentialVariables = {
+                id: registrationParsed.credential.id || '',
+                pubkey: registrationParsed.credential.publicKey || '',
+                algorithm: registrationParsed.credential.algorithm || '',
+                transports: registrationParsed.credential.transports || [],
+                userid: userDataFromDataBase.data.userdata[0].userid || '',
+            };
+    
+            // Insert user credentials
+            try {
+    
+                const credentialResponse = await client.mutate({
+                    mutation: INSERT_NEW_USER_CREDENTIAL,
+                    variables: credentialVariables,
+                });
+    
+    
+                console.log('----------------------------------------------------------------');
+                console.log('User credentials inserted:', credentialResponse);
+                res.json(true);
+            } catch (credentialError) {
+                console.error('Error inserting user credentials:', credentialError);
+                res.json(false);
+            }
+
+
+
+        }catch(error){
+            console.log("Error getting userdata from database:",error);
+            throw error;
         }
 
     } catch (error) {
@@ -93,7 +191,7 @@ app.post('/api/register-user', async (req, res) => {
 
 
 
-app.post('/api/authentication-user', async (req,res) =>{
+app.post('/api/authentication-user-credetial', async (req,res) =>{//Need modificiations
 
     const authenticationData = req.body.authenticationData;
     console.log('----------------------------------------------------------------');
@@ -101,67 +199,41 @@ app.post('/api/authentication-user', async (req,res) =>{
 
     try{
 
-        const result = await client.query({
-            query: GET_USER_CREDENTIAL,
-            variables: { id: authenticationData.id },
+        const userData = await client.query({//get userdata if exists in database
+            query: GET_USER_DATA,
+            variables: {username: authenticationData.username},
         });
 
-        const credential = result.data.usercredential[0];
-        
-        const secondCredential  = {
-            id: credential.id,
-            publicKey: credential.pubkey,
-            algorithm: credential.algorithm,
-            transports: credential.transports
-        };
+        try{
 
-
-        if (credential && credential.id) {             
+            const result = await client.query({ //Get credential from database with the user id
+                query: GET_USER_CREDENTIAL,
+                variables: { userid: userData.data.userdata[0].userid},
+            });
+    
+    
+            const tempCredential = result.data.usercredential[0];
             
-            // console.log('----------------------------------------------------------------');
-            // console.log('Credential recived from database:', credential);
-
-            // console.log('----------------------------------------------------------------');
-            // console.log('Expected shown: ',expected);
-            
-            // console.log('----------------------------------------------------------------');
-            // console.log("Expected:", typeof expected);
-            // console.log("credential:", typeof credential.id);
-            // console.log("Authentication:", typeof authenticationData.id);
-
-
-            console.log('----------------------------------------------------------------');
-            console.log("Expected Challenge:", typeof expected.challenge, expected.challenge);
-            console.log("Expected Origin:", typeof expected.origin, expected.origin);
-            console.log("Expected User Verified:", typeof expected.userVerified, expected.userVerified);
-            console.log("Expected Verbose:", typeof expected.verbose, expected.verbose);
-
-            console.log('----------------------------------------------------------------');
-            console.log("Credential ID:", typeof credential.id, credential.id);
-            console.log("Credential PublicKey:", typeof credential.pubkey, credential.pubkey);
-            console.log("Credential Algorithm:", typeof credential.algorithm, credential.algorithm);
-            console.log("Credential Transports:", typeof credential.transports[0], credential.transports);
-
-            console.log('----------------------------------------------------------------');
-            console.log("Authentication Data ID:", typeof authenticationData.id, authenticationData.id);
-            console.log("Authentication Data Raw ID:", typeof authenticationData.rawId, authenticationData.rawId);
-            console.log("Authentication Data Type:", typeof authenticationData.type, authenticationData.type);
-            console.log("Authentication Data Response authenticatorData:", typeof authenticationData.response.authenticatorData, authenticationData.response.authenticatorData);
-            console.log("Authentication Data Response clientDataJSON:", typeof authenticationData.response.clientDataJSON, authenticationData.response.clientDataJSON);
-            console.log("Authentication Data Response signature:", typeof authenticationData.response.signature, authenticationData.response.signature);
-            console.log("Authentication Data Response userHandle:", typeof authenticationData.response.userHandle, authenticationData.response.userHandle);
-            console.log('----------------------------------------------------------------');
-
-            
+            const credential  = { // credential data that will be send to verifyAuthentication
+                id: tempCredential.id,
+                publicKey: tempCredential.pubkey,
+                algorithm: tempCredential.algorithm,
+                transports: tempCredential.transports
+            };
+    
+                   
             if (authenticationData && credential && expected) {
+
                 try {
 
-                    const authenticationParsed = await server.verifyAuthentication(authenticationData, secondCredential, expected);
-
+                    const authenticationParsed = await server.verifyAuthentication(authenticationData.authentication, credential, expected);
+    
                     console.log('Verification result:', authenticationParsed);
+
                 } catch (error) {
                     console.error('Detailed error:', error);
                 }
+
             } else {
                 console.error('One or more parameters are undefined:', {
                     authenticationData,
@@ -169,17 +241,16 @@ app.post('/api/authentication-user', async (req,res) =>{
                     expected
                 });
             }
-
-            res.json('true');
-        } else {
-            console.log('No credentials found for the given ID.');
-            res.json('false');
-        }   
-
+    
+        }catch(error){
+            console.log('Credetial doesnt exist for this user',error);
+            res.json(false);
+        };
 
     }catch(error){
-        console.error('Error inserting user credentials authentication:', error);
-    }
+        console.log('User doesnt exist');
+        res.json(false);
+    };
 });
 
 

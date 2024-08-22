@@ -6,13 +6,15 @@ const INSERT_NEW_USER_CREDENTIAL = gql`
         $pubkey: String!,
         $algorithm: String!,
         $transports: [String!]!,
+        $userid: String!,
     ){
         insert_usercredential(
             objects:{
                 id: $id,
                 pubkey: $pubkey,
                 algorithm: $algorithm,
-                transports: $transports
+                transports: $transports,
+                userid: $userid
             }
         ){
             affected_rows
@@ -21,6 +23,30 @@ const INSERT_NEW_USER_CREDENTIAL = gql`
                 pubkey
                 algorithm
                 transports
+                userid
+            }
+        }
+    }
+`;
+
+const INSERT_NEW_USER_DATA = gql`
+    mutation InsertNewUserData(
+        $username: String!,
+        $userpassword: String!,
+        $userid: String!,
+    ){
+        insert_userdata(
+            objects:{
+                username: $username,
+                userpassword: $userpassword,
+                userid: $userid,
+            }
+        ){
+            affected_rows
+            returning{
+                username
+                userpassword
+                userid
             }
         }
     }
@@ -28,4 +54,5 @@ const INSERT_NEW_USER_CREDENTIAL = gql`
 
 export{
     INSERT_NEW_USER_CREDENTIAL,
+    INSERT_NEW_USER_DATA,
 };

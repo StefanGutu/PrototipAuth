@@ -13,8 +13,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const crypto_1 = __importDefault(require("crypto"));
 const cors_1 = __importDefault(require("cors"));
+const crypto_1 = __importDefault(require("crypto"));
 const webauthn_1 = require("@passwordless-id/webauthn");
 const apollo_Client_1 = __importDefault(require("./apollo-Client"));
 const mutations_1 = require("./graphql/mutations");
@@ -31,6 +31,7 @@ const expected = {
 };
 app.post('/api/generate-challenge', (req, res) => {
     const challenge = generateBase64UrlEncodedString(); // get the random string
+    // const challenge = server.randomChallenge();
     expected.challenge = challenge;
     res.json({ challenge }); //send it back
 });
@@ -47,7 +48,78 @@ app.post('/api/generate-ID', (req, res) => {
     const id = crypto_1.default.randomUUID();
     res.json({ id });
 });
+//This function recive data when the client register for the first time and send it to data base
 app.post('/api/register-user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const registrationData = req.body.registrationData;
+    console.log("-----------------------------------------------------------");
+    console.log("Recived user data for registration:", registrationData);
+    console.log("-----------------------------------------------------------");
+    try {
+        const newRegistrationData = {
+            username: registrationData.UserName,
+            userpassword: registrationData.UserPassword,
+            userid: registrationData.UserID
+        };
+        try {
+            const credentialResponse = yield apollo_Client_1.default.mutate({
+                mutation: mutations_1.INSERT_NEW_USER_DATA,
+                variables: newRegistrationData,
+            });
+            console.log('----------------------------------------------------------------');
+            console.log('User data inserted with success:', credentialResponse);
+            res.json(true);
+        }
+        catch (error) {
+            console.log('Error inserting user data: ', error);
+            throw error;
+        }
+    }
+    catch (error) {
+        console.log('Error getting hashed password in register-user ', error);
+        throw error;
+    }
+}));
+const validateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const auth = authHeader.split(' ')[1];
+        const [username, password] = Buffer.from(auth, 'base64').toString().split(':'); // Extrage username și password din header
+        try {
+            const userDataFromDataBase = yield apollo_Client_1.default.query({
+                query: queries_1.GET_USER_DATA,
+                variables: { username: username },
+            });
+            if (userDataFromDataBase.data.userdata.length === 0) {
+                return res.json(false);
+            }
+            if (password === userDataFromDataBase.data.userdata[0].userpassword) {
+                return next();
+            }
+            else {
+                return res.json(false);
+            }
+        }
+        catch (error) {
+            console.log('Error during user validation: ', error);
+            return res.status(500).send('Internal Server Error');
+        }
+    }
+    else {
+        return res.status(401).json('Authentication required');
+    }
+});
+app.post('/api/authentication-user', validateUser, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        console.log('User authenticated successfully.');
+        return res.json(true);
+    }
+    catch (error) {
+        console.log('Error during the authentication process: ', error);
+        return res.json(false);
+    }
+}));
+//--------------------------------------------------------------------------------------------------------------------------------------------
+app.post('/api/register-user-credetial', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const registrationData = req.body.registrationData;
     console.log('Received registration data:', registrationData);
     try {
@@ -55,26 +127,38 @@ app.post('/api/register-user', (req, res) => __awaiter(void 0, void 0, void 0, f
         const registrationParsed = yield webauthn_1.server.verifyRegistration(registrationData, expected); //also its checking challanges
         console.log('----------------------------------------------------------------');
         console.log('Verified registration data:', registrationParsed);
-        // Variables for inserting user credentials
-        const credentialVariables = {
-            id: registrationParsed.credential.id || '',
-            pubkey: registrationParsed.credential.publicKey || '',
-            algorithm: registrationParsed.credential.algorithm || '',
-            transports: registrationParsed.credential.transports || [],
-        };
-        // Insert user credentials
         try {
-            const credentialResponse = yield apollo_Client_1.default.mutate({
-                mutation: mutations_1.INSERT_NEW_USER_CREDENTIAL,
-                variables: credentialVariables,
+            //Search for the user in database and get data to add id to credetials that will be saved
+            const userDataFromDataBase = yield apollo_Client_1.default.query({
+                query: queries_1.GET_USER_DATA,
+                variables: { username: registrationParsed.user.name },
             });
-            console.log('----------------------------------------------------------------');
-            console.log('User credentials inserted:', credentialResponse);
-            res.json('true');
+            // Variables for inserting user credentials
+            const credentialVariables = {
+                id: registrationParsed.credential.id || '',
+                pubkey: registrationParsed.credential.publicKey || '',
+                algorithm: registrationParsed.credential.algorithm || '',
+                transports: registrationParsed.credential.transports || [],
+                userid: userDataFromDataBase.data.userdata[0].userid || '',
+            };
+            // Insert user credentials
+            try {
+                const credentialResponse = yield apollo_Client_1.default.mutate({
+                    mutation: mutations_1.INSERT_NEW_USER_CREDENTIAL,
+                    variables: credentialVariables,
+                });
+                console.log('----------------------------------------------------------------');
+                console.log('User credentials inserted:', credentialResponse);
+                res.json(true);
+            }
+            catch (credentialError) {
+                console.error('Error inserting user credentials:', credentialError);
+                res.json(false);
+            }
         }
-        catch (credentialError) {
-            console.error('Error inserting user credentials:', credentialError);
-            res.json('false');
+        catch (error) {
+            console.log("Error getting userdata from database:", error);
+            throw error;
         }
     }
     catch (error) {
@@ -83,53 +167,30 @@ app.post('/api/register-user', (req, res) => __awaiter(void 0, void 0, void 0, f
         res.status(500).json({ error: 'Error verifying registration' });
     }
 }));
-app.post('/api/authentication-user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post('/api/authentication-user-credetial', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const authenticationData = req.body.authenticationData;
     console.log('----------------------------------------------------------------');
     console.log('Recived authentication data', authenticationData);
     try {
-        const result = yield apollo_Client_1.default.query({
-            query: queries_1.GET_USER_CREDENTIAL,
-            variables: { id: authenticationData.id },
+        const userData = yield apollo_Client_1.default.query({
+            query: queries_1.GET_USER_DATA,
+            variables: { username: authenticationData.username },
         });
-        const credential = result.data.usercredential[0];
-        const secondCredential = {
-            id: credential.id,
-            publicKey: credential.pubkey,
-            algorithm: credential.algorithm,
-            transports: credential.transports
-        };
-        if (credential && credential.id) {
-            // console.log('----------------------------------------------------------------');
-            // console.log('Credential recived from database:', credential);
-            // console.log('----------------------------------------------------------------');
-            // console.log('Expected shown: ',expected);
-            // console.log('----------------------------------------------------------------');
-            // console.log("Expected:", typeof expected);
-            // console.log("credential:", typeof credential.id);
-            // console.log("Authentication:", typeof authenticationData.id);
-            console.log('----------------------------------------------------------------');
-            console.log("Expected Challenge:", typeof expected.challenge, expected.challenge);
-            console.log("Expected Origin:", typeof expected.origin, expected.origin);
-            console.log("Expected User Verified:", typeof expected.userVerified, expected.userVerified);
-            console.log("Expected Verbose:", typeof expected.verbose, expected.verbose);
-            console.log('----------------------------------------------------------------');
-            console.log("Credential ID:", typeof credential.id, credential.id);
-            console.log("Credential PublicKey:", typeof credential.pubkey, credential.pubkey);
-            console.log("Credential Algorithm:", typeof credential.algorithm, credential.algorithm);
-            console.log("Credential Transports:", typeof credential.transports[0], credential.transports);
-            console.log('----------------------------------------------------------------');
-            console.log("Authentication Data ID:", typeof authenticationData.id, authenticationData.id);
-            console.log("Authentication Data Raw ID:", typeof authenticationData.rawId, authenticationData.rawId);
-            console.log("Authentication Data Type:", typeof authenticationData.type, authenticationData.type);
-            console.log("Authentication Data Response authenticatorData:", typeof authenticationData.response.authenticatorData, authenticationData.response.authenticatorData);
-            console.log("Authentication Data Response clientDataJSON:", typeof authenticationData.response.clientDataJSON, authenticationData.response.clientDataJSON);
-            console.log("Authentication Data Response signature:", typeof authenticationData.response.signature, authenticationData.response.signature);
-            console.log("Authentication Data Response userHandle:", typeof authenticationData.response.userHandle, authenticationData.response.userHandle);
-            console.log('----------------------------------------------------------------');
+        try {
+            const result = yield apollo_Client_1.default.query({
+                query: queries_1.GET_USER_CREDENTIAL,
+                variables: { userid: userData.data.userdata[0].userid },
+            });
+            const tempCredential = result.data.usercredential[0];
+            const credential = {
+                id: tempCredential.id,
+                publicKey: tempCredential.pubkey,
+                algorithm: tempCredential.algorithm,
+                transports: tempCredential.transports
+            };
             if (authenticationData && credential && expected) {
                 try {
-                    const authenticationParsed = yield webauthn_1.server.verifyAuthentication(authenticationData, secondCredential, expected);
+                    const authenticationParsed = yield webauthn_1.server.verifyAuthentication(authenticationData.authentication, credential, expected);
                     console.log('Verification result:', authenticationParsed);
                 }
                 catch (error) {
@@ -143,16 +204,18 @@ app.post('/api/authentication-user', (req, res) => __awaiter(void 0, void 0, voi
                     expected
                 });
             }
-            res.json('true');
         }
-        else {
-            console.log('No credentials found for the given ID.');
-            res.json('false');
+        catch (error) {
+            console.log('Credetial doesnt exist for this user', error);
+            res.json(false);
         }
+        ;
     }
     catch (error) {
-        console.error('Error inserting user credentials authentication:', error);
+        console.log('User doesnt exist');
+        res.json(false);
     }
+    ;
 }));
 app.get('/api/get-challenge', (req, res) => {
     res.json({ challenge: expected.challenge });

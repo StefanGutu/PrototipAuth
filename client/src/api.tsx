@@ -1,4 +1,10 @@
 
+interface userData { 
+    UserName: String;
+    UserPassword: String;
+    UserID: String; 
+}
+
 export async function fetchChallenge(){
     try{
         const response = await fetch('http://localhost:3000/api/generate-challenge',{
@@ -46,9 +52,77 @@ export async function fetchID(): Promise<String> {
 
 
 
-export async function sendRegistrationData(registrationData: object): Promise<boolean> {
+export async function sendUserRegistrationData(registrationData: object){
+    try{
+        const response = await fetch('http://localhost:3000/api/register-user',{
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({registrationData}),
+        });
+
+        if(!response.ok){
+            const errorText = await response.text();
+            throw new Error(`Error sending user registration data: ${response.status} - ${errorText}`);
+        }else{
+            localStorage.setItem('authToken','true'); // generare token
+
+        }
+
+        const result = await response.json();
+        console.log("Registration success:",result);
+        return result;
+
+    }catch(error){
+        console.error('Error in function sendUserRegistrationData:', error);
+        throw error;
+    }
+}
+
+
+
+export async function sendUserAuthenticationData(authenticationData: userData) {
+    const userDataModif = btoa(`${authenticationData.UserName}:${authenticationData.UserPassword}`);
+
+
+        try{
+            const response = await fetch('http://localhost:3000/api/authentication-user',{
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${userDataModif}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    UserName: authenticationData.UserName,
+                    UserPassword: authenticationData.UserPassword
+                }),
+            });
+
+
+            if(!response.ok){
+                const errorText = await response.text();
+                throw new Error(`Error sending user authentication data:  ${response.status} - ${errorText}`);
+            }else{
+                localStorage.setItem('authToken','true');
+            }
+
+            const result = await response.json();
+            console.log("Authentication success: ",result);
+            return result;
+
+        }catch(error){
+            console.error('Error in function sendUserAuthenticationData:',error);
+            throw error;
+        }
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------
+
+export async function sendUserCredetialsData(registrationData: object): Promise<boolean> {
     try {
-        const response = await fetch('http://localhost:3000/api/register-user', {
+        const response = await fetch('http://localhost:3000/api/register-user-credetial', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -77,11 +151,11 @@ export async function sendRegistrationData(registrationData: object): Promise<bo
 }
 
 
-export async function sendAuthenticationData(authenticationData: object): Promise<boolean>{
+export async function sendAuthenticationDataCredetial(authenticationData: object): Promise<boolean>{
     
     try{
 
-        const response = await fetch("http://localhost:3000/api/authentication-user",{
+        const response = await fetch("http://localhost:3000/api/authentication-user-credetial",{
             method: 'POST',
             headers: {
                 'Content-Type':'application/json',
@@ -93,17 +167,14 @@ export async function sendAuthenticationData(authenticationData: object): Promis
         if(!response.ok){
             const errorText = await response.text();
             throw new Error(`Error sending authentication data: ${response.status} - ${errorText}`);
+        }else{
+            localStorage.setItem('authToken','true');
         }
 
         const result = await response.json();
         console.log("Authentication success:",result);
 
-        if(result !== 'true'){
-            return false;
-        }else{
-            return true;
-        }
-
+        return result;
     }catch(error){
         console.error("Error sending authentication data:", error);
         throw error;
