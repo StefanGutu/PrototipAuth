@@ -106,5 +106,8 @@
     "skipLibCheck": true  ,                               /* Skip type checking all .d.ts files. */
 
     "outDir": "dist",
+    "lib": ["es2020", "dom"],
+    "types": ["node"],
+    "typeRoots": ["node_modules/@types"]
   }
 }

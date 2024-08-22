@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { server } from '@passwordless-id/webauthn';
 import  client  from './apollo-Client';
 import { INSERT_NEW_USER_CREDENTIAL, INSERT_NEW_USER_DATA } from './graphql/mutations';
 import {GET_USER_CREDENTIAL, GET_USER_DATA} from './graphql/queries';
 import { Request, Response, NextFunction } from 'express';
+
+(global as any).crypto = crypto;
 
 const app = express();
 const port = 3000;
@@ -190,8 +192,7 @@ app.post('/api/register-user-credetial', async (req, res) => {
 });
 
 
-
-app.post('/api/authentication-user-credetial', async (req,res) =>{//Need modificiations
+app.post('/api/authentication-user-credetial', async (req,res) =>{
 
     const authenticationData = req.body.authenticationData;
     console.log('----------------------------------------------------------------');
@@ -229,6 +230,7 @@ app.post('/api/authentication-user-credetial', async (req,res) =>{//Need modific
                     const authenticationParsed = await server.verifyAuthentication(authenticationData.authentication, credential, expected);
     
                     console.log('Verification result:', authenticationParsed);
+                    res.json(true);
 
                 } catch (error) {
                     console.error('Detailed error:', error);

@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14,11 +37,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const crypto_1 = __importDefault(require("crypto"));
+const crypto = __importStar(require("crypto"));
 const webauthn_1 = require("@passwordless-id/webauthn");
 const apollo_Client_1 = __importDefault(require("./apollo-Client"));
 const mutations_1 = require("./graphql/mutations");
 const queries_1 = require("./graphql/queries");
+global.crypto = crypto;
 const app = (0, express_1.default)();
 const port = 3000;
 app.use(express_1.default.json());
@@ -37,7 +61,7 @@ app.post('/api/generate-challenge', (req, res) => {
 });
 //Function to generate random string for challenge
 function generateBase64UrlEncodedString() {
-    const randomString = crypto_1.default.randomBytes(32).toString('hex');
+    const randomString = crypto.randomBytes(32).toString('hex');
     const base64String = Buffer.from(randomString).toString('base64');
     const base64UrlString = base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     console.log("Challenge:", typeof base64UrlString, base64UrlString);
@@ -45,7 +69,7 @@ function generateBase64UrlEncodedString() {
 }
 // Function that generate random ID for user
 app.post('/api/generate-ID', (req, res) => {
-    const id = crypto_1.default.randomUUID();
+    const id = crypto.randomUUID();
     res.json({ id });
 });
 //This function recive data when the client register for the first time and send it to data base
@@ -192,6 +216,7 @@ app.post('/api/authentication-user-credetial', (req, res) => __awaiter(void 0, v
                 try {
                     const authenticationParsed = yield webauthn_1.server.verifyAuthentication(authenticationData.authentication, credential, expected);
                     console.log('Verification result:', authenticationParsed);
+                    res.json(true);
                 }
                 catch (error) {
                     console.error('Detailed error:', error);

@@ -3,8 +3,12 @@
     "@passwordless-id/webauthn": "^2.0.2",
     "cors": "^2.8.5",
     "cross-fetch": "^4.0.0",
+    "crypto": "^1.0.1",
     "express": "^4.19.2",
     "gql.tada": "^1.8.5",
     "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0"
   }
 }
