@@ -42,6 +42,7 @@ const webauthn_1 = require("@passwordless-id/webauthn");
 const apollo_Client_1 = __importDefault(require("./apollo-Client"));
 const mutations_1 = require("./graphql/mutations");
 const queries_1 = require("./graphql/queries");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 global.crypto = crypto;
 const app = (0, express_1.default)();
 const port = 3000;
@@ -53,9 +54,13 @@ const expected = {
     userVerified: false,
     verbose: false,
 };
+const secretKey = "a-very-very-secret-key";
+const userDataForToken = {
+    userid: "userid",
+    username: "username",
+};
 app.post('/api/generate-challenge', (req, res) => {
     const challenge = generateBase64UrlEncodedString(); // get the random string
-    // const challenge = server.randomChallenge();
     expected.challenge = challenge;
     res.json({ challenge }); //send it back
 });
@@ -89,9 +94,12 @@ app.post('/api/register-user', (req, res) => __awaiter(void 0, void 0, void 0, f
                 mutation: mutations_1.INSERT_NEW_USER_DATA,
                 variables: newRegistrationData,
             });
+            userDataForToken.userid = newRegistrationData.userid;
+            userDataForToken.username = newRegistrationData.username;
             console.log('----------------------------------------------------------------');
             console.log('User data inserted with success:', credentialResponse);
-            res.json(true);
+            const token = jsonwebtoken_1.default.sign(userDataForToken, secretKey, { expiresIn: '1h' });
+            res.json({ token });
         }
         catch (error) {
             console.log('Error inserting user data: ', error);
@@ -117,6 +125,8 @@ const validateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
                 return res.json(false);
             }
             if (password === userDataFromDataBase.data.userdata[0].userpassword) {
+                userDataForToken.userid = userDataFromDataBase.data.userdata[0].userid;
+                userDataForToken.username = userDataFromDataBase.data.userdata[0].username;
                 return next();
             }
             else {
@@ -135,7 +145,12 @@ const validateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 app.post('/api/authentication-user', validateUser, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         console.log('User authenticated successfully.');
-        return res.json(true);
+        const token = jsonwebtoken_1.default.sign(userDataForToken, secretKey, { expiresIn: '1h' });
+        const dataBack = {
+            userid: userDataForToken.userid,
+            token: token,
+        };
+        res.json({ dataBack });
     }
     catch (error) {
         console.log('Error during the authentication process: ', error);
@@ -177,7 +192,7 @@ app.post('/api/register-user-credetial', (req, res) => __awaiter(void 0, void 0,
             }
             catch (credentialError) {
                 console.error('Error inserting user credentials:', credentialError);
-                res.json(false);
+                throw credentialError;
             }
         }
         catch (error) {
@@ -216,7 +231,14 @@ app.post('/api/authentication-user-credetial', (req, res) => __awaiter(void 0, v
                 try {
                     const authenticationParsed = yield webauthn_1.server.verifyAuthentication(authenticationData.authentication, credential, expected);
                     console.log('Verification result:', authenticationParsed);
-                    res.json(true);
+                    userDataForToken.userid = userData.data.userdata[0].userid;
+                    userDataForToken.username = userData.data.userdata[0].username;
+                    const token = jsonwebtoken_1.default.sign(userDataForToken, secretKey, { expiresIn: '1h' });
+                    const dataBack = {
+                        userid: userDataForToken.userid,
+                        token: token,
+                    };
+                    res.json({ dataBack });
                 }
                 catch (error) {
                     console.error('Detailed error:', error);

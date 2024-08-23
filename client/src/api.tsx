@@ -1,8 +1,9 @@
 
+
 interface userData { 
-    UserName: String;
-    UserPassword: String;
-    UserID: String; 
+    UserName: string;
+    UserPassword: string;
+    UserID: string; 
 }
 
 export async function fetchChallenge(){
@@ -65,9 +66,6 @@ export async function sendUserRegistrationData(registrationData: object){
         if(!response.ok){
             const errorText = await response.text();
             throw new Error(`Error sending user registration data: ${response.status} - ${errorText}`);
-        }else{
-            localStorage.setItem('authToken','true'); // generare token
-
         }
 
         const result = await response.json();
@@ -103,8 +101,6 @@ export async function sendUserAuthenticationData(authenticationData: userData) {
             if(!response.ok){
                 const errorText = await response.text();
                 throw new Error(`Error sending user authentication data:  ${response.status} - ${errorText}`);
-            }else{
-                localStorage.setItem('authToken','true');
             }
 
             const result = await response.json();
@@ -151,7 +147,7 @@ export async function sendUserCredetialsData(registrationData: object): Promise<
 }
 
 
-export async function sendAuthenticationDataCredetial(authenticationData: object): Promise<boolean>{
+export async function sendAuthenticationDataCredetial(authenticationData: object){
     
     try{
 
@@ -167,14 +163,13 @@ export async function sendAuthenticationDataCredetial(authenticationData: object
         if(!response.ok){
             const errorText = await response.text();
             throw new Error(`Error sending authentication data: ${response.status} - ${errorText}`);
-        }else{
-            localStorage.setItem('authToken','true');
         }
 
         const result = await response.json();
         console.log("Authentication success:",result);
 
         return result;
+
     }catch(error){
         console.error("Error sending authentication data:", error);
         throw error;

@@ -1,22 +1,20 @@
 import { useNavigate } from 'react-router-dom';
-import { ChangeEvent, useState } from 'react';
 import { client } from '@passwordless-id/webauthn';
 import { fetchChallenge,sendUserCredetialsData } from './api';
+import { useAuth } from './AuthUse';
 
 
 
 function SuccesPage(){
 
-    const [username, setUser] = useState<string>("");
-
     const navigate = useNavigate();
 
-    function handleUsernameChange(event: ChangeEvent<HTMLInputElement>){
-        setUser(event.target.value);
-    }
+    const {username,logout} = useAuth();
+
 
     async function handleIntegratePasswordless(){
-        if(username.trim() !== ""){
+
+        if(username && username.trim() !== ""){
 
             const registration =await client.register({
                 user: username,
@@ -32,12 +30,11 @@ function SuccesPage(){
                 console.log("Everything is alright with credetial registration!");
             }
 
-            setUser("");
         }
     }
 
     function handleLogginOutProtectedPage(){
-        localStorage.removeItem('authToken');
+        logout();
         navigate("/");
     }
 
@@ -49,9 +46,8 @@ function SuccesPage(){
                 </div>
 
 
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}>
                     <h2>Change to passwordless auth</h2>
-                    <input type="text" placeholder='User name' value={username} onChange={handleUsernameChange}></input>
                     <button onClick={handleIntegratePasswordless} >Change now</button>
                 </div>
 

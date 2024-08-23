@@ -6,6 +6,7 @@ import  client  from './apollo-Client';
 import { INSERT_NEW_USER_CREDENTIAL, INSERT_NEW_USER_DATA } from './graphql/mutations';
 import {GET_USER_CREDENTIAL, GET_USER_DATA} from './graphql/queries';
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
 (global as any).crypto = crypto;
 
@@ -24,11 +25,17 @@ const expected = {
     verbose: false,
 };
 
+const secretKey = "a-very-very-secret-key";
+
+const userDataForToken = {
+    userid: "userid",
+    username: "username",
+};
+
 
 
 app.post('/api/generate-challenge', (req, res) => {
     const challenge = generateBase64UrlEncodedString(); // get the random string
-    // const challenge = server.randomChallenge();
     expected.challenge = challenge;
     res.json({ challenge }); //send it back
 });
@@ -73,9 +80,15 @@ app.post('/api/register-user', async (req , res) =>{
                 variables: newRegistrationData,
             });
 
+            userDataForToken.userid = newRegistrationData.userid;
+            userDataForToken.username = newRegistrationData.username
+
             console.log('----------------------------------------------------------------');
             console.log('User data inserted with success:', credentialResponse);
-            res.json(true);
+
+            const token: string = jwt.sign(userDataForToken,secretKey,{expiresIn:'1h'});
+
+            res.json({token});
 
         }catch(error){
             console.log('Error inserting user data: ',error);
@@ -107,6 +120,10 @@ const validateUser = async (req:Request, res: Response, next:NextFunction) => {
             }
 
             if (password === userDataFromDataBase.data.userdata[0].userpassword) {
+                
+                userDataForToken.userid = userDataFromDataBase.data.userdata[0].userid;
+                userDataForToken.username = userDataFromDataBase.data.userdata[0].username;
+
                 return next();
             } else {
                 return res.json(false);
@@ -123,7 +140,15 @@ const validateUser = async (req:Request, res: Response, next:NextFunction) => {
 app.post('/api/authentication-user', validateUser, async (req, res) => {
     try {
         console.log('User authenticated successfully.');
-        return res.json(true);
+
+        const token: string = jwt.sign(userDataForToken,secretKey,{expiresIn:'1h'});
+
+        const dataBack = {
+            userid: userDataForToken.userid,
+            token: token,
+        };
+
+        res.json({dataBack});
     } catch (error) {
         console.log('Error during the authentication process: ', error);
         return res.json(false);
@@ -174,7 +199,7 @@ app.post('/api/register-user-credetial', async (req, res) => {
                 res.json(true);
             } catch (credentialError) {
                 console.error('Error inserting user credentials:', credentialError);
-                res.json(false);
+                throw credentialError;
             }
 
 
@@ -230,7 +255,19 @@ app.post('/api/authentication-user-credetial', async (req,res) =>{
                     const authenticationParsed = await server.verifyAuthentication(authenticationData.authentication, credential, expected);
     
                     console.log('Verification result:', authenticationParsed);
-                    res.json(true);
+
+                    userDataForToken.userid = userData.data.userdata[0].userid;
+                    userDataForToken.username =  userData.data.userdata[0].username;
+
+
+                    const token: string = jwt.sign(userDataForToken,secretKey,{expiresIn:'1h'});
+
+                    const dataBack = {
+                        userid: userDataForToken.userid,
+                        token: token,
+                    };
+            
+                    res.json({dataBack});
 
                 } catch (error) {
                     console.error('Detailed error:', error);

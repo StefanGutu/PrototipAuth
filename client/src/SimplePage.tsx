@@ -2,12 +2,14 @@ import {useState,ChangeEvent} from 'react'
 import { client } from '@passwordless-id/webauthn'
 import { fetchID,fetchChallenge,sendUserRegistrationData,sendUserAuthenticationData,sendAuthenticationDataCredetial} from './api.tsx';
 import { useNavigate } from 'react-router-dom';
-
+import { useAuth } from './AuthUse';
 
 function SimplePage(){
 
     const [users, setUsers] = useState<{UserID: String, UserName: String,UserPassword: String}[]>([]);
     const [newUser, setNewUser] = useState({UserName: "",UserID: "",UserPassword: ""});
+
+    const {login} = useAuth();
 
     const navigate = useNavigate();
 
@@ -30,19 +32,17 @@ function SimplePage(){
 
             const response = await sendUserRegistrationData(tempUser);
 
-            if(response === true) {
+            if(response){
+
+                login(response, String(id),String(tempUser.UserName));
+
                 const TempListUsers = [...users, tempUser];
                 setUsers(TempListUsers);
                 
                 setNewUser({UserName: "",UserID: "",UserPassword: ""});
 
-                
                 navigate("/SuccesPage");
-
-            }else{
-                navigate("/");
             }
-
         }
 
     }
@@ -53,7 +53,10 @@ function SimplePage(){
             try{
                 const response = await sendUserAuthenticationData(newUser);
 
-                if(response ===  true){
+                if(response){
+
+                    login(response.dataBack.token,response.dataBack.userid,newUser.UserName);
+
                     navigate("/SuccesPage"); 
                 }
             }catch(error){
@@ -74,8 +77,12 @@ function SimplePage(){
                 
                 try{
                     const response = await sendAuthenticationDataCredetial(authenticationData);
-    
-                    if(response ===  true){
+                    
+
+                    if(response){
+                        
+                        login(response.dataBack.token,response.dataBack.userid,newUser.UserName);
+
                         navigate("/SuccesPage"); 
                     }
 
