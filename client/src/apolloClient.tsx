@@ -7,7 +7,7 @@ import React, { ReactNode } from 'react';
 
 
 const httpLink = new HttpLink({ // connect ApolloClient with GraphQL server over http
-    uri: 'http://localhost:8080/v1/graphql',
+    uri: 'https://localhost:8080/v1/graphql',
     headers: {
       "x-hasura-admin-secret": "1111",  //default password
     },

@@ -42,7 +42,7 @@ function SuccesPage(){
         <>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontSize: '40px' }}>
                 <div>
-                    <h1>Authentication with succes!!!!</h1>
+                    <h1>Authentication with success!!!!</h1>
                 </div>
 
 

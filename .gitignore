@@ -5,3 +5,7 @@ postgres-db
 server2
 
 .env
+
+*.pem
+
+*.cnf

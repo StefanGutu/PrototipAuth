@@ -7,6 +7,11 @@ import { INSERT_NEW_USER_CREDENTIAL, INSERT_NEW_USER_DATA } from './graphql/muta
 import {GET_USER_CREDENTIAL, GET_USER_DATA} from './graphql/queries';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import webPush from 'web-push';
+
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
 
 (global as any).crypto = crypto;
 
@@ -20,7 +25,7 @@ app.use(cors());
 
 const expected = {
     challenge: "",
-    origin: "http://localhost:5173",
+    origin: "https://localhost:5173",
     userVerified: false,
     verbose: false,
 };
@@ -32,6 +37,48 @@ const userDataForToken = {
     username: "username",
 };
 
+
+
+//Implementation for push notification
+//--------------------------------------------------------------------------------------------------------------------------
+const vapidPublicKey = "BLfq3iDTKDQYMeUpFjz2vTjsqWekSHkCB4Fzv5EKKzXcxPDP7rH8SOdn7DqIyEujKey-SpOXwYGWmSv_XFjb9Og"
+const vapidPrivateKey = "D8fjdTVuY_RLZEtIxA0g13DZa_oHBnoKYiQqEmyaoyQ"
+
+webPush.setVapidDetails(
+    'https://localhost:5173',
+    vapidPublicKey,
+    vapidPrivateKey
+);
+
+app.post('/api/send-notification',(req, res) => {
+    console.log("We are in /api/send-notification");
+
+    const subscription = req.body.subscription;
+
+    console.log("-------------------------------------------------------------------")
+    console.log("Received subscription:", subscription);
+    console.log("-------------------------------------------------------------------")
+
+    const payload = JSON.stringify({
+        title: 'Hi!',
+        body: 'Test push notification'
+    });
+    console.log("-------------------------------------------------------------------")
+    console.log("Payload  made successful:", payload);
+    console.log("-------------------------------------------------------------------")
+
+
+    webPush.sendNotification(subscription,payload)
+    .then(response => res.status(200).json({ success: true }))
+    .catch(error => {
+        console.error('Error:', error);
+        res.status(500).json({ error });
+    });
+});
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------
 
 
 app.post('/api/generate-challenge', (req, res) => {
@@ -307,6 +354,20 @@ app.get('/', (req, res) => {
 
 
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
+// app.listen(port, () => {
+//     console.log(`Server running at https://localhost:${port}`);
+// });
+
+// Definește __dirname
+const dirname = path.resolve();
+
+// Opțiuni HTTPS
+const httpsOptions = {
+  key: fs.readFileSync(path.join(dirname, 'ssl', 'localhost-key.pem')),
+  cert: fs.readFileSync(path.join(dirname, 'ssl', 'localhost.pem')),
+};
+
+// Crează serverul HTTPS
+https.createServer(httpsOptions, app).listen(port, () => {
+    console.log(`Server running at https://localhost:${port}`);
+  });

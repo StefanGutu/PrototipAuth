@@ -6,7 +6,7 @@ import { useAuth } from './AuthUse';
 
 function SimplePage(){
 
-    const [users, setUsers] = useState<{UserID: String, UserName: String,UserPassword: String}[]>([]);
+    const [users, setUsers] = useState<{UserID: string, UserName: string,UserPassword: string}[]>([]);
     const [newUser, setNewUser] = useState({UserName: "",UserID: "",UserPassword: ""});
 
     const {login} = useAuth();
@@ -15,7 +15,7 @@ function SimplePage(){
 
     function handleInputNewUserName(event: ChangeEvent<HTMLInputElement>) {
         setNewUser({ ...newUser, UserName: event.target.value});
-    };
+    }
 
     function handleInputNewUserPassword(event: ChangeEvent<HTMLInputElement>){
         setNewUser({...newUser, UserPassword: event.target.value})
@@ -96,7 +96,7 @@ function SimplePage(){
             }
         }
         setNewUser({UserName: "",UserID: "",UserPassword: ""});
-    };
+    }
 
 
 
